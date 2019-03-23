@@ -1,5 +1,6 @@
 ﻿using Microsoft.Win32;
 using System;
+using System.Configuration;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,6 +14,10 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.IO;
+using System.Net.Http;
+using LandmarkAI.Classes;
+using Newtonsoft.Json;
 
 namespace LandmarkAI
 {
@@ -24,6 +29,7 @@ namespace LandmarkAI
         public MainWindow()
         {
             InitializeComponent();
+            string predictionKey = ConfigurationManager.AppSettings["key"].ToString();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
@@ -41,8 +47,28 @@ namespace LandmarkAI
             }
         }
 
-        private void MakePredictionAsync(string fileName)
+        private async void MakePredictionAsync(string fileName)
         {
+            string url = ConfigurationManager.AppSettings["url"].ToString();
+            string predictionKey = ConfigurationManager.AppSettings["key"].ToString();
+            string contentType = "application/octet-stream";
+            var file = File.ReadAllBytes(fileName);
+
+            using (HttpClient client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Add("Prediction-Key", predictionKey);
+
+                using (var content = new ByteArrayContent(file))
+                {
+                    content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+                    var response = await client.PostAsync(url, content);
+
+                    var responseString = await response.Content.ReadAsStringAsync();
+
+                    List<Prediction> predictions = (JsonConvert.DeserializeObject<CustomVision>(responseString)).Predictions;
+                    predictionsListView.ItemsSource = predictions;
+                }
+            }
         }
     }
 }
